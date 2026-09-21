@@ -1,0 +1,36 @@
+[project]
+name = "trace-to-patch"
+version = "0.1.0"
+description = "A failing test to a verified patch - or an honest 'could not reproduce'"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["fault-localization", "automated-program-repair", "debugging", "pytest", "llm", "retrieval"]
+# No runtime dependencies. BM25 is ~40 lines, embeddings and the model are plain HTTP,
+# and everything else is stdlib ast and subprocess.
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.16,<0.17"]
+
+[project.scripts]
+trace-to-patch = "trace_to_patch.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/trace_to_patch"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

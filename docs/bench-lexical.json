@@ -1,0 +1,231 @@
+{
+  "repo": "toolz",
+  "cases": 25,
+  "signals": {
+    "traceback": 14,
+    "assertion": 11
+  },
+  "by_signal": {
+    "traceback": {
+      "n": 14,
+      "localised": 7,
+      "reproduced": 0,
+      "patched": 0,
+      "recall_at_1": 0.35714285714285715,
+      "recall_at_3": 0.5,
+      "recall_at_10": 0.5
+    },
+    "assertion": {
+      "n": 11,
+      "localised": 9,
+      "reproduced": 0,
+      "patched": 0,
+      "recall_at_1": 0.36363636363636365,
+      "recall_at_3": 0.7272727272727273,
+      "recall_at_10": 0.8181818181818182
+    }
+  },
+  "rows": [
+    {
+      "truth": "toolz/itertoolz.py::accumulate",
+      "signal": "traceback",
+      "blast": 3,
+      "rank": 1,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/itertoolz.py::_merge_sorted_binary",
+      "signal": "traceback",
+      "blast": 2,
+      "rank": 1,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/itertoolz.py::_merge_sorted_binary",
+      "signal": "assertion",
+      "blast": 2,
+      "rank": 2,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/itertoolz.py::_merge_sorted_binary_key",
+      "signal": "assertion",
+      "blast": 2,
+      "rank": 3,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/itertoolz.py::get",
+      "signal": "traceback",
+      "blast": 2,
+      "rank": 1,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/itertoolz.py::get",
+      "signal": "traceback",
+      "blast": 2,
+      "rank": 2,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/itertoolz.py::partition_all",
+      "signal": "assertion",
+      "blast": 2,
+      "rank": 1,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/itertoolz.py::pluck",
+      "signal": "assertion",
+      "blast": 2,
+      "rank": 2,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/itertoolz.py::join",
+      "signal": "assertion",
+      "blast": 5,
+      "rank": 1,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/itertoolz.py::join",
+      "signal": "assertion",
+      "blast": 3,
+      "rank": 1,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/itertoolz.py::diff",
+      "signal": "assertion",
+      "blast": 2,
+      "rank": 1,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/itertoolz.py::diff",
+      "signal": "traceback",
+      "blast": 1,
+      "rank": null,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/sandbox/parallel.py::fold",
+      "signal": "traceback",
+      "blast": 1,
+      "rank": null,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "tlz/_build_tlz.py::TlzLoader.find_module",
+      "signal": "traceback",
+      "blast": 1,
+      "rank": null,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/functoolz.py::curry.__init__",
+      "signal": "traceback",
+      "blast": 27,
+      "rank": 3,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/functoolz.py::curry.__signature__",
+      "signal": "assertion",
+      "blast": 4,
+      "rank": null,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/functoolz.py::curry.__eq__",
+      "signal": "assertion",
+      "blast": 4,
+      "rank": null,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/functoolz.py::Compose.__doc__",
+      "signal": "traceback",
+      "blast": 4,
+      "rank": 1,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/functoolz.py::Compose.__eq__",
+      "signal": "assertion",
+      "blast": 2,
+      "rank": 7,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/functoolz.py::juxt.__init__",
+      "signal": "traceback",
+      "blast": 2,
+      "rank": null,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/_signatures.py::num_pos_args",
+      "signal": "traceback",
+      "blast": 3,
+      "rank": null,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/_signatures.py::check_partial",
+      "signal": "traceback",
+      "blast": 2,
+      "rank": null,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/_signatures.py::check_arity",
+      "signal": "assertion",
+      "blast": 3,
+      "rank": 3,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/sandbox/core.py::EqualityHashKey.__hash__",
+      "signal": "traceback",
+      "blast": 1,
+      "rank": null,
+      "reproduced": false,
+      "patched": false
+    },
+    {
+      "truth": "toolz/dicttoolz.py::merge",
+      "signal": "traceback",
+      "blast": 5,
+      "rank": 1,
+      "reproduced": false,
+      "patched": false
+    }
+  ],
+  "seconds": 71.7
+}

@@ -1,0 +1,29 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          # No uv.lock is committed, and the default glob (**/uv.lock) makes setup-uv
+          # fail outright when it matches nothing.
+          cache-dependency-glob: "**/pyproject.toml"
+      - run: uv sync --all-groups
+
+      - name: Lint
+        run: |
+          uv run ruff check src tests
+          uv run ruff format --check src tests
+
+      # Everything under test is the code that decides - parsing a failure, ranking a
+      # candidate, gating a reproduction, gating a patch. None of it calls a model, so
+      # the whole suite runs without a GPU or a network.
+      - name: Test
+        run: uv run pytest -q
