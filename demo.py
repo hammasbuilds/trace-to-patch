@@ -23,11 +23,15 @@ ROOT = Path(__file__).resolve().parent
 
 
 def main() -> int:
-    print('trace-to-patch: how much is a traceback worth when locating a bug?', flush=True)
+    print("trace-to-patch: how much is a traceback worth when locating a bug?", flush=True)
     print(flush=True)
     result = subprocess.run(
-        [sys.executable, "-m", 'trace_to_patch.cli',
-            *['bench', 'targets/toolz', '--locate-only', '--no-embeddings', '--limit', '5']],
+        [
+            sys.executable,
+            "-m",
+            "trace_to_patch.cli",
+            *["bench", "targets/toolz", "--locate-only", "--no-embeddings", "--limit", "5"],
+        ],
         cwd=ROOT,
         env={**os.environ, "PYTHONPATH": str(ROOT / "src"), "PYTHONIOENCODING": "utf-8"},
         check=False,
@@ -36,9 +40,9 @@ def main() -> int:
         return result.returncode
     print(flush=True)
     for line in (
-        'Run the full pipeline, including patching, with:',
-        '    trace-to-patch fix <repo> --test <failing test>',
-        '    trace-to-patch bench <repo>        # add --locate-only to skip the model',
+        "Run the full pipeline, including patching, with:",
+        "    trace-to-patch fix <repo> --test <failing test>",
+        "    trace-to-patch bench <repo>        # add --locate-only to skip the model",
     ):
         print(line, flush=True)
     return 0
