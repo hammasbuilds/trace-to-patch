@@ -2,13 +2,12 @@
 <p align="center"><i>A failing test to a verified patch — or an honest "could not reproduce"</i></p>
 
 <p align="center">
-  <a href="#the-through-line">The through-line</a> &middot;
-  <a href="#the-result">The result</a> &middot;
+  <a href="#what-it-does">What it does</a> &middot;
+  <a href="#results">Results</a> &middot;
   <a href="docs/RESULTS.md">Full results</a> &middot;
   <a href="#how-it-works">How it works</a> &middot;
   <a href="#run-it">Run it</a> &middot;
-  <a href="#what-this-does-not-do">What it does NOT do</a> &middot;
-  <a href="#problems-hit-while-building-this">Problems hit</a>
+  <a href="#scope">Scope</a> 
 </p>
 
 <p align="center">
@@ -22,7 +21,7 @@
 
 ---
 
-## The through-line
+## What it does
 
 ```mermaid
 flowchart LR
@@ -43,7 +42,7 @@ to tell them apart: the bug is fixed, or the patch deleted the code path that wa
 
 > **A bug nobody can reproduce is a bug nobody should be patching.**
 
-## The result
+## Results
 
 I pitched this as *"stack trace → patch"*. Before writing any of it, I injected 25
 single-point bugs into a real library and looked at what its own suite actually reports:
@@ -144,7 +143,7 @@ src/trace_to_patch/
   types.py           Failure, Candidate, Attempt - and the Signal split the tool turns on
 ```
 
-## What this does NOT do
+## Scope
 
 - **It does not fix what it cannot reproduce.** That is the point, not a gap.
 - **It does not prove a patch correct.** It proves the reproduction passes and nothing that
@@ -155,31 +154,6 @@ src/trace_to_patch/
 - **The patch stage is unmeasured so far.** The published run is `--locate-only`; the GPU
   was busy with another measurement, and reporting a patch rate from a handful of cases
   would be worse than reporting none.
-
-## Problems hit while building this
-
-Every one of these is the same species: **a rule that silently did nothing, or a number that
-was confidently wrong**, rather than anything that crashed.
-
-- **The premise was wrong, and so was the measurement that checked it.** My first probe said
-  52% of bugs crash. It classified failures by matching `/\w*(Error|Exception)/` on pytest's
-  output — and `AssertionError` contains "Error", so every ordinary assertion failure
-  counted as a crash. The real figure is 56%, and the whole tool is built around that split,
-  so publishing the first number would have been building on sand. A test now pins it.
-- **The tokenizer's camelCase branch could never fire.** It lowercased the text before
-  looking for capitals. Retrieval would have quietly degraded on any camelCase codebase, and
-  nothing would ever have pointed at it.
-- **The benchmark scored the locator on impossible tasks.** It injected bugs into methods
-  and recorded them as the answer, while the index only ever held module-level functions —
-  so those cases could not be found by construction. Methods are indexed as `Class.method`
-  now, and patched with the indentation put back.
-- **It also scored bugs injected into `examples/`.** Not library code, three cases out of
-  twenty-eight, and no reasonable locator should be marked down for them. Membership is now
-  decided by whether the directory is a package.
-- **My explanation for the headline was wrong.** I had a tidy story about crashes coming
-  from deep utilities. Measuring blast radius refuted it: the deepest bug in the set was
-  found at rank 3, and the misses were no deeper than the hits. The story in the README now
-  is the one the data supports.
 
 ## Also worth reading
 
