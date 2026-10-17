@@ -1,176 +1,124 @@
-<h1 align="center">trace-to-patch (Python · ast · BM25 · embeddings · Ollama)</h1>
-<p align="center"><i>A failing test to a verified patch — or an honest "could not reproduce"</i></p>
+# trace-to-patch
 
-<p align="center">
-  <a href="#what-it-does">What it does</a> &middot;
-  <a href="#results">Results</a> &middot;
-  <a href="docs/RESULTS.md">Full results</a> &middot;
-  <a href="#how-it-works">How it works</a> &middot;
-  <a href="#run-it">Run it</a> &middot;
-  <a href="#scope">Scope</a> 
-</p>
+[![ci](https://github.com/hammasbuilds/trace-to-patch/actions/workflows/ci.yml/badge.svg)](https://github.com/hammasbuilds/trace-to-patch/actions/workflows/ci.yml)
+![python](https://img.shields.io/badge/python-3.11%2B-blue)
+![runtime deps](https://img.shields.io/badge/runtime%20deps-0-brightgreen)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-<p align="center">
-  <a href="https://github.com/hammasbuilds/trace-to-patch/actions/workflows/ci.yml"><img src="https://github.com/hammasbuilds/trace-to-patch/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
-  <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="python">
-  <img src="https://img.shields.io/badge/runtime%20deps-0-brightgreen" alt="zero dependencies">
-  <img src="https://img.shields.io/badge/model-qwen2.5--coder%3A14b-orange" alt="model">
-  <img src="https://img.shields.io/badge/tests-30-brightgreen" alt="tests">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
-</p>
-
----
+We built trace-to-patch to take a red test in a Python repository to a verified patch, or to
+an explicit "could not reproduce". It locates the faulty function, writes a failing
+reproduction test before any fix is tried, makes one patch attempt with a local model, and
+keeps the patch only if the reproduction now passes, nothing that was green went red, and the
+edit stayed inside the one function. It is for developers who want an automated fixer whose
+"fixed" means something, and for anyone measuring how much a traceback really helps
+localisation.
 
 ## What it does
 
-```mermaid
-flowchart LR
-    R["a red test"] --> L["LOCATE<br/>traceback + BM25<br/>+ embeddings"]
-    L --> P["REPRODUCE<br/>write a failing test<br/><b>first</b>"]
-    P -->|it fails, for<br/>the right reason| F["PATCH<br/>one attempt"]
-    P -->|it does not| N["COULD NOT<br/>REPRODUCE"]
-    F --> V["VERIFY<br/>repro passes,<br/>nothing else broke"]
+- **Locate**: ranks candidate functions with three signals fused by reciprocal rank: frames
+  from the traceback, BM25 over function source, and embeddings (`nomic-embed-text`).
+- **Reproduce first**: a generated test must fail on the current code, and fail for the
+  stated reason (a test that dies on its own bad import does not count). Otherwise the
+  result is `could not reproduce`, reported as an outcome.
+- **Patch once**: one attempt with `qwen2.5-coder:14b`. A refused patch stays refused and says why.
+- **Verify three ways**: the reproduction passes, no previously green test is red, and the
+  patch touched only the target function. The tree is restored unless all three hold.
+- **Bench**: injects single-point bugs into a real library, keeps the ones its suite
+  notices, and scores every stage against the known answer.
 
-    style P fill:#2563eb,color:#fff
-    style N fill:#b91c1c,color:#fff
-    style V fill:#16a34a,color:#fff
+## Sample input / output
+
+`python demo.py` (localisation only, no model; `toolz` is vendored under `targets/`):
+
+```
+trace-to-patch: how much is a traceback worth when locating a bug?
+
+injecting bugs into toolz and keeping the ones its suite notices...
+  5 cases: 3 traceback, 2 assertion
+  [1/5] toolz/itertoolz.py::accumulate               traceback rank=  1 repro=n patch=n
+  [2/5] toolz/itertoolz.py::_merge_sorted_binary     traceback rank=  1 repro=n patch=n
+  [3/5] toolz/itertoolz.py::_merge_sorted_binary     assertion rank=  2 repro=n patch=n
+  [4/5] toolz/itertoolz.py::_merge_sorted_binary_key assertion rank=  3 repro=n patch=n
+  [5/5] toolz/itertoolz.py::get                      traceback rank=  1 repro=n patch=n
+
+==============================================================================
+TRACE TO PATCH - 5 injected bugs in toolz
+==============================================================================
+  signal          n     r@1     r@3    r@10   repro  patched
+  traceback       3 100.0% 100.0% 100.0%   0.0%     0.0%
+  assertion       2   0.0% 100.0% 100.0%   0.0%     0.0%
+  traceback    breaks a median of 2 test(s) (range 2-3)
+  assertion    breaks a median of 2 test(s) (range 2-2)
+
+  a traceback is worth +100.0% of recall@1 over a bare assertion,
+  and it is present for 3/5 (60%) of these failures.
+  took 26s
 ```
 
-The reproduction is written **before** any fix is attempted, and it is the only reason a
-verdict here means anything. Without it, "the suite went green" has two readings and no way
-to tell them apart: the bug is fixed, or the patch deleted the code path that was failing.
-
-> **A bug nobody can reproduce is a bug nobody should be patching.**
+Five cases is a smoke test of the pipeline; the measured result is the 25-bug run below.
+`repro` and `patched` are 0% here because the demo runs without a model.
 
 ## Results
 
-I pitched this as *"stack trace → patch"*. Before writing any of it, I injected 25
-single-point bugs into a real library and looked at what its own suite actually reports:
+25 single-point bugs injected into `toolz`, localisation with both retrieval arms
+(full run in [docs/RESULTS.md](docs/RESULTS.md)):
 
-```
-56%  a traceback naming a library file
-44%  a bare assertion in the test - ZERO library frames
-```
-
-**Almost half the time there is no trace at all.** A logic bug returns a wrong value; it
-does not raise, so nothing inside the library ever appears in a frame. The premise of the
-pitch held 56% of the time.
-
-Then, with both retrieval arms running:
+- 56% of the failures came with a traceback naming a library file; 44% were a bare assertion
+  in the test with no library frame at all.
 
 | signal | n | r@1 | r@3 | r@10 |
 |---|---:|---:|---:|---:|
-| **traceback** | 14 | 35.7% | 42.9% | 64.3% |
-| **bare assertion** | 11 | **45.5%** | 63.6% | **90.9%** |
+| traceback | 14 | 35.7% | 42.9% | 64.3% |
+| bare assertion | 11 | **45.5%** | 63.6% | **90.9%** |
 
-**A traceback leaves you worse off.** Ten points behind at rank 1, twenty-six behind at rank
-10, against a failure that gave you nothing but a test name.
+- Failures with a traceback were localised worse: a traceback names where execution stopped,
+  which is often not where the mistake was made.
+- Depth did not explain the misses (median tests broken: 2 for found and missed bugs alike; the
+  deepest bug broke 27 tests and was found at rank 3). The missed functions (`curry.__eq__`,
+  `num_pos_args`, `check_partial`, `juxt.__init__`) have no test named after them.
+- The published run is `--locate-only`; the patch stage has no published rate yet.
 
-The reason is not that the traceback is noise. It is that a traceback names **where
-execution stopped**, and that is a different place from where the mistake was made. A wrong
-value surfaces in the test written for the very function that computed it; a crash surfaces
-wherever the bad value finally met something that could not cope with it.
+## Tech stack
 
-### What does *not* explain it
-
-The obvious story — crashes come from deep utilities, whose breakage surfaces far from the
-cause — was measured, and it is **wrong**:
-
-| | n | median tests broken | max |
-|---|---:|---:|---:|
-| localised | 16 | 2 | **27** |
-| missed | 9 | 2 | 4 |
-
-The deepest bug in the set breaks 27 tests and was found at rank 3. What the misses share is
-not depth but a **name**: `curry.__eq__`, `num_pos_args`, `check_partial`, `juxt.__init__` —
-no test in the suite is named after any of them. Lexical retrieval is, to a first
-approximation, a test-naming-convention detector, and the embedding arm is what covers the
-functions that convention misses.
-
-See [docs/RESULTS.md](docs/RESULTS.md) for the full run.
-
-## How it works
-
-**Locate.** Three signals, fused by reciprocal rank — which needs no shared scale, and BM25
-scores, cosine similarities and "it appeared in the traceback" have none. The traceback arm
-is nearly free and available just over half the time; BM25 over function source catches
-`test_merge_sorted → merge_sorted`; embeddings catch the functions nobody named a test after.
-
-**Reproduce, before fixing.** A generated test has to clear two bars: it must *fail* against
-the current code, and it must fail **for the stated reason**. A test that errors on its own
-bad import also "fails", and would then "pass" after any edit whatsoever. Anything short of
-both bars is `could not reproduce`, which is an outcome rather than an error.
-
-**Patch, once.** `code-llm-lab` measured self-debug loops capturing 100% of their gain by
-round two, and 93.3% of first-attempt failures surviving both repair and rewrite. A second
-attempt at the same broken function buys close to nothing. A refused patch stays refused and
-says why.
-
-**Verify, three ways.** The reproduction now passes; no test that was green is red; and the
-patch stayed inside the one function it was given — a model asked to fix `merge_sorted` will
-sometimes rewrite its neighbour too, and an unreviewed change is not a fix even when the
-suite is green. The tree is restored unless all three hold.
+- Python 3.11+, zero runtime dependencies
+- `ast` and `subprocess` (stdlib) to read functions and run pytest; BM25 written in plain Python
+- A local Ollama server over HTTP: `qwen2.5-coder:14b` for reproduction tests and patches,
+  `nomic-embed-text` for the embedding arm
+- pytest, ruff, hatchling, GitHub Actions
 
 ## Run it
 
 ```bash
 git clone https://github.com/hammasbuilds/trace-to-patch
 cd trace-to-patch
-uv venv && uv pip install -e ".[dev]"
+uv sync --all-groups
+
+uv run python demo.py
 
 # fix whatever is currently red
-trace-to-patch fix /path/to/repo
+uv run trace-to-patch fix /path/to/repo
 
 # measure every stage against known answers
-trace-to-patch bench /path/to/repo --limit 45
+uv run trace-to-patch bench /path/to/repo --limit 45
 
 # localisation only - no language model at all
-trace-to-patch bench /path/to/repo --locate-only --no-embeddings
+uv run trace-to-patch bench /path/to/repo --locate-only --no-embeddings
 ```
 
-`--locate-only --no-embeddings` is pure stdlib and needs nothing running. The full pipeline
-needs Ollama with `qwen2.5-coder:14b`, and `nomic-embed-text` for the semantic arm.
+`--locate-only --no-embeddings` is pure standard library and needs nothing running. The full
+pipeline needs Ollama with `qwen2.5-coder:14b`, plus `nomic-embed-text` for the semantic arm.
 
-## Layout
+Code layout: `src/trace_to_patch/` holds `failure.py` (run the suite, read the traceback),
+`locate/retrieval.py` (the three signals and their fusion), `reproduce.py`, `patch.py`,
+`bench.py` and `types.py`.
 
-```
-src/trace_to_patch/
-  failure.py         run the suite; read the traceback, or notice there is not one
-  locate/retrieval.py BM25 + embeddings + traceback frames, fused by reciprocal rank
-  reproduce.py       write a failing test first, and check it fails for the right reason
-  patch.py           one attempt, then three checks, then restore unless all three hold
-  bench.py           inject bugs and keep the answer, so every stage is measurable
-  types.py           Failure, Candidate, Attempt - and the Signal split the tool turns on
-```
+Related: [pr-referee](https://github.com/hammasbuilds/pr-referee) and
+[repo-surgeon](https://github.com/hammasbuilds/repo-surgeon) apply the same "only what can be
+proven" rule to review and to migrations;
+[swebench-localization](https://github.com/hammasbuilds/swebench-localization) measures
+issue-text-to-file retrieval.
 
-## Scope
+## Licence
 
-- **It does not fix what it cannot reproduce.** That is the point, not a gap.
-- **It does not prove a patch correct.** It proves the reproduction passes and nothing that
-  was green went red. Those are weaker claims, and they are the ones actually checked.
-- **One repository, 25 injected bugs**, split two ways. The direction of the traceback
-  result held across every configuration run; the exact percentages are not tight.
-- **Injected bugs are not human mistakes.** A flipped comparison is a proxy for a real bug.
-- **The patch stage is unmeasured so far.** The published run is `--locate-only`; the GPU
-  was busy with another measurement, and reporting a patch rate from a handful of cases
-  would be worse than reporting none.
-
-## Also worth reading
-
-| | |
-|---|---|
-| &#128202; **[Results](docs/RESULTS.md)** | The full run, with the refuted hypothesis included |
-| **[repo-surgeon](https://github.com/hammasbuilds/repo-surgeon)** | The same discipline pointed at migrations: it refuses what it cannot prove |
-| **[pr-referee](https://github.com/hammasbuilds/pr-referee)** | A reviewer that only reports what it can prove, measured against an LLM reviewer |
-| **[swebench-localization](https://github.com/hammasbuilds/swebench-localization)** | Where the retrieval approach came from — issue text to file, scored by recall@k |
-
-## Keywords
-
-fault localization &middot; automated program repair &middot; debugging &middot; failing
-test &middot; stack trace &middot; traceback &middot; pytest &middot; BM25 &middot; hybrid
-retrieval &middot; reciprocal rank fusion &middot; embeddings &middot; mutation testing
-&middot; local LLM &middot; Ollama &middot; qwen2.5-coder &middot; reproducible benchmarks
-
-## License
-
-MIT - see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE). `targets/toolz` is a vendored copy of
+[toolz](https://github.com/pytoolz/toolz) (BSD-3-Clause).
